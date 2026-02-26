@@ -37,15 +37,16 @@
             <input type="text" id="product-url" placeholder="Paste Golf Partner URL here...">
             <button onclick="fetchProduct()" id="fetch-btn">Fetch</button>
           </div>
-          
+
           <div id="product-preview" class="hidden">
             <div class="product-info">
               <p class="product-name" id="preview-name"></p>
               <p class="product-price">¥<span id="preview-price"></span></p>
               <p class="product-stock" id="preview-stock"></p>
+              <p class="product-category">Category: <span id="preview-category"></span></p>
             </div>
             <div class="category-select">
-              <label>Category:</label>
+              <label>Change Category (if needed):</label>
               <select id="category-select"></select>
             </div>
             <button onclick="addToCart()" class="add-btn">Add to Cart</button>
@@ -57,7 +58,7 @@
         <section class="cart">
           <h2>Cart <span id="cart-count">(0)</span></h2>
           <div id="cart-items"></div>
-          
+
           <div id="cart-summary" class="hidden">
             <div class="summary-row">
               <span>Subtotal (with margin):</span>

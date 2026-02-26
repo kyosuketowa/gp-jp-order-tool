@@ -10,10 +10,9 @@ let currentProduct = null;
 
 // ========== 初期化 ==========
 document.addEventListener('DOMContentLoaded', () => {
-  // URLパラメータからキーを取得
   const params = new URLSearchParams(window.location.search);
   const key = params.get('key');
-  
+
   if (key) {
     document.getElementById('key-input').value = key;
     authenticate();
@@ -27,28 +26,23 @@ async function authenticate() {
     showError('auth-error', 'Please enter your access key');
     return;
   }
-  
+
   try {
-    // ユーザー情報取得
     const userRes = await apiGet('user', { key });
     if (userRes.error) throw new Error(userRes.error);
     currentUser = userRes;
-    
-    // カテゴリ取得
+
     const catRes = await apiGet('categories');
     categories = catRes.categories || [];
-    
-    // 為替取得
+
     const rateRes = await apiGet('rate', { currency: currentUser.currency });
     exchangeRate = rateRes.rate || 150;
-    
-    // カート取得
+
     const cartRes = await apiGet('cart', { key });
     cart = cartRes.items || [];
-    
-    // UI更新
+
     showMainScreen();
-    
+
   } catch (err) {
     showError('auth-error', err.message);
   }
@@ -57,26 +51,20 @@ async function authenticate() {
 function showMainScreen() {
   document.getElementById('auth-screen').classList.add('hidden');
   document.getElementById('main-screen').classList.remove('hidden');
-  
-  // ユーザー情報表示
+
   document.getElementById('user-name').textContent = currentUser.name;
   document.getElementById('user-currency').textContent = currentUser.currency;
-  
-  // カテゴリプルダウン作成
+
   const select = document.getElementById('category-select');
-  select.innerHTML = categories.map(c => 
+  select.innerHTML = categories.map(c =>
     `<option value="${c.name}">${c.name}</option>`
   ).join('');
-  
-  // 為替表示
+
   document.getElementById('rate-currency').textContent = currentUser.currency;
   document.getElementById('rate-value').textContent = exchangeRate.toFixed(2);
   document.getElementById('currency-label').textContent = currentUser.currency;
-  
-  // カート表示
+
   renderCart();
-  
-  // 注文履歴取得
   loadOrders();
 }
 
@@ -87,22 +75,28 @@ async function fetchProduct() {
     showError('fetch-error', 'Please enter a URL');
     return;
   }
-  
+
   const btn = document.getElementById('fetch-btn');
   btn.disabled = true;
   btn.textContent = 'Loading...';
   clearError('fetch-error');
-  
+
   try {
     const res = await apiGet('product', { url });
     if (res.error) throw new Error(res.error);
-    
+
     currentProduct = res;
-    
-    // プレビュー表示
+
     document.getElementById('preview-name').textContent = res.nameEN || res.nameJP || 'Unknown';
     document.getElementById('preview-price').textContent = res.price.toLocaleString();
-    
+    document.getElementById('preview-category').textContent = res.category || 'Unknown';
+
+    // カテゴリプルダウンを自動判定結果に設定
+    const select = document.getElementById('category-select');
+    if (res.category) {
+      select.value = res.category;
+    }
+
     const stockEl = document.getElementById('preview-stock');
     if (res.stock === 'IN') {
       stockEl.textContent = '✓ In Stock';
@@ -114,9 +108,9 @@ async function fetchProduct() {
       stockEl.textContent = '? Stock Unknown';
       stockEl.className = 'product-stock';
     }
-    
+
     document.getElementById('product-preview').classList.remove('hidden');
-    
+
   } catch (err) {
     showError('fetch-error', err.message);
   } finally {
@@ -128,9 +122,10 @@ async function fetchProduct() {
 // ========== カート操作 ==========
 async function addToCart() {
   if (!currentProduct) return;
-  
+
+  // ユーザーが変更した可能性があるのでプルダウンから取得
   const category = document.getElementById('category-select').value;
-  
+
   const item = {
     url: currentProduct.url,
     productId: currentProduct.productId,
@@ -138,22 +133,21 @@ async function addToCart() {
     price: currentProduct.price,
     category: category
   };
-  
+
   try {
     await apiPost({
       action: 'addToCart',
       userKey: currentUser.key,
       item: item
     });
-    
+
     cart.push(item);
     renderCart();
-    
-    // リセット
+
     document.getElementById('product-url').value = '';
     document.getElementById('product-preview').classList.add('hidden');
     currentProduct = null;
-    
+
   } catch (err) {
     alert('Error adding to cart: ' + err.message);
   }
@@ -166,10 +160,10 @@ async function removeFromCart(index) {
       userKey: currentUser.key,
       itemIndex: index
     });
-    
+
     cart.splice(index, 1);
     renderCart();
-    
+
   } catch (err) {
     alert('Error removing item: ' + err.message);
   }
@@ -178,15 +172,15 @@ async function removeFromCart(index) {
 function renderCart() {
   const container = document.getElementById('cart-items');
   const summary = document.getElementById('cart-summary');
-  
+
   document.getElementById('cart-count').textContent = `(${cart.length})`;
-  
+
   if (cart.length === 0) {
     container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">Cart is empty</p>';
     summary.classList.add('hidden');
     return;
   }
-  
+
   container.innerHTML = cart.map((item, i) => `
     <div class="cart-item">
       <div class="cart-item-info">
@@ -197,67 +191,64 @@ function renderCart() {
       <button class="remove-btn" onclick="removeFromCart(${i})">Remove</button>
     </div>
   `).join('');
-  
-  // 合計計算
+
   const subtotal = cart.reduce((sum, item) => sum + (item.price * currentUser.margin), 0);
   const shipping = calculateShipping();
   const totalJPY = subtotal + shipping;
   const totalFX = totalJPY / exchangeRate;
-  
+
   document.getElementById('subtotal-jpy').textContent = Math.round(subtotal).toLocaleString();
   document.getElementById('shipping-jpy').textContent = shipping.toLocaleString();
   document.getElementById('total-jpy').textContent = Math.round(totalJPY).toLocaleString();
   document.getElementById('total-fx').textContent = totalFX.toFixed(2);
-  
+
   summary.classList.remove('hidden');
 }
 
 function calculateShipping() {
-  // カテゴリ別にカウント
   const counts = {};
-  
+
   cart.forEach(item => {
     const cat = categories.find(c => c.name === item.category);
     if (!cat) return;
-    
+
     const groupKey = cat.groupWith || cat.name;
     if (!counts[groupKey]) counts[groupKey] = 0;
     counts[groupKey] += (cat.multiplier || 1);
   });
-  
-  // 箱数計算
+
   let total = 0;
   Object.keys(counts).forEach(groupKey => {
     const cat = categories.find(c => c.name === groupKey);
     if (!cat) return;
-    
+
     const boxes = Math.ceil(counts[groupKey] / cat.perBox);
     total += boxes * cat.boxPrice;
   });
-  
+
   return total;
 }
 
 // ========== 注文 ==========
 async function submitOrder() {
   if (cart.length === 0) return;
-  
+
   if (!confirm('Submit this order?')) return;
-  
+
   try {
     const res = await apiPost({
       action: 'submitOrder',
       userKey: currentUser.key
     });
-    
+
     if (res.error) throw new Error(res.error);
-    
+
     alert(`Order submitted!\n\nOrder ID: ${res.orderId}\nTotal: ${res.totalFX} ${res.currency}\n\nPlease transfer to Wise account.`);
-    
+
     cart = [];
     renderCart();
     loadOrders();
-    
+
   } catch (err) {
     alert('Error submitting order: ' + err.message);
   }
@@ -267,14 +258,14 @@ async function loadOrders() {
   try {
     const res = await apiGet('orders', { key: currentUser.key });
     const orders = res.orders || [];
-    
+
     const container = document.getElementById('orders-list');
-    
+
     if (orders.length === 0) {
       container.innerHTML = '<p style="color: #666;">No orders yet</p>';
       return;
     }
-    
+
     container.innerHTML = orders.reverse().map(order => `
       <div class="order-item">
         <div class="order-header">
@@ -285,7 +276,7 @@ async function loadOrders() {
         <div class="order-total">${order.totalFX}</div>
       </div>
     `).join('');
-    
+
   } catch (err) {
     console.error('Error loading orders:', err);
   }
@@ -296,7 +287,7 @@ async function apiGet(action, params = {}) {
   const url = new URL(API_BASE);
   url.searchParams.set('action', action);
   Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
-  
+
   const res = await fetch(url.toString());
   return res.json();
 }
