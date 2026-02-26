@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GP Order Tool</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 認証前 -->
+    <div id="auth-screen" class="screen">
+      <div class="auth-container">
+        <h1>🏌️ GP Order Tool</h1>
+        <p>Enter your access key to continue</p>
+        <input type="text" id="key-input" placeholder="Your access key">
+        <button onclick="authenticate()">Enter</button>
+        <p id="auth-error" class="error"></p>
+      </div>
+    </div>
+
+    <!-- メイン画面 -->
+    <div id="main-screen" class="screen hidden">
+      <header>
+        <h1>🏌️ GP Order Tool</h1>
+        <div class="user-info">
+          <span id="user-name"></span>
+          <span id="user-currency"></span>
+        </div>
+      </header>
+
+      <main>
+        <!-- 商品追加セクション -->
+        <section class="add-product">
+          <h2>Add Product</h2>
+          <div class="input-group">
+            <input type="text" id="product-url" placeholder="Paste Golf Partner URL here...">
+            <button onclick="fetchProduct()" id="fetch-btn">Fetch</button>
+          </div>
+          
+          <div id="product-preview" class="hidden">
+            <div class="product-info">
+              <p class="product-name" id="preview-name"></p>
+              <p class="product-price">¥<span id="preview-price"></span></p>
+              <p class="product-stock" id="preview-stock"></p>
+            </div>
+            <div class="category-select">
+              <label>Category:</label>
+              <select id="category-select"></select>
+            </div>
+            <button onclick="addToCart()" class="add-btn">Add to Cart</button>
+          </div>
+          <p id="fetch-error" class="error"></p>
+        </section>
+
+        <!-- カート -->
+        <section class="cart">
+          <h2>Cart <span id="cart-count">(0)</span></h2>
+          <div id="cart-items"></div>
+          
+          <div id="cart-summary" class="hidden">
+            <div class="summary-row">
+              <span>Subtotal (with margin):</span>
+              <span>¥<span id="subtotal-jpy">0</span></span>
+            </div>
+            <div class="summary-row">
+              <span>Shipping:</span>
+              <span>¥<span id="shipping-jpy">0</span></span>
+            </div>
+            <div class="summary-row total">
+              <span>Total:</span>
+              <span>¥<span id="total-jpy">0</span></span>
+            </div>
+            <div class="summary-row total-fx">
+              <span>Total (<span id="currency-label">USD</span>):</span>
+              <span><span id="total-fx">0.00</span></span>
+            </div>
+            <div class="exchange-rate">
+              Rate: 1 <span id="rate-currency">USD</span> = ¥<span id="rate-value">0</span>
+            </div>
+            <button onclick="submitOrder()" class="submit-btn">Submit Order</button>
+          </div>
+        </section>
+
+        <!-- 注文履歴 -->
+        <section class="orders">
+          <h2>Order History</h2>
+          <div id="orders-list"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
